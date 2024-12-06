@@ -15,6 +15,11 @@ var rootCmd = &cobra.Command{
     Use:   "dotfilesync",
     Short: "A command-line dotfile syncer.",
     Long: `A command-line dotfile syncer.`,
+    Run: func(cmd *cobra.Command, args []string) {
+        if sync {
+            fmt.Println("I will eventually sync files. Not right now though")
+        }
+    },
 }
 
 func Execute() {
