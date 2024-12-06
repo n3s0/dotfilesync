@@ -6,9 +6,11 @@ import (
 
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
+    "github.com/n3s0/dotfilesync/dfs"
 )
 
 var cfgFile string
+var syncDir string
 var sync bool
 
 var rootCmd = &cobra.Command{
@@ -17,7 +19,7 @@ var rootCmd = &cobra.Command{
     Long: `A command-line dotfile syncer.`,
     Run: func(cmd *cobra.Command, args []string) {
         if sync {
-            fmt.Println("I will eventually sync files. Not right now though")
+            for  
         }
     },
 }
