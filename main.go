@@ -115,8 +115,9 @@ func init() {
 
     rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $HOME/.config/dotfilesync/config.yaml)")
     rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "", false, "Show verbose output")
-    rootCmd.PersistentFlags().BoolVarP(&sync, "sync", "s", false, "Sync dotfiles to the home directory. Will sync to dotfiles directory too.")
     rootCmd.PersistentFlags().BoolVarP(&backup, "backup", "b", false, "Backup dotfiles to sync directory")
+    rootCmd.PersistentFlags().BoolVarP(&backup, "restore", "r", false, "Will restore backup files to their home directory locations.")
+    rootCmd.PersistentFlags().BoolVarP(&sync, "sync", "s", false, "Sync dotfiles to the home directory. Will sync to dotfiles directory too.")
     rootCmd.PersistentFlags().BoolVarP(&push, "push", "p", false, "Adding, commit, and push files to git repo")
 }
 
