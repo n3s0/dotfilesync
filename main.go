@@ -78,7 +78,7 @@ var rootCmd = &cobra.Command{
                 
                 err := CopyDir(syncDirPath, dotDirPath)
                 if err != nil {
-                    fmt.Printf("Error: %s\n", err)
+                    fmt.Printf("%s\n", err)
                 }
             } 
             
@@ -90,7 +90,7 @@ var rootCmd = &cobra.Command{
 
                 err := CopyFile(syncFilePath, dotFilePath)
                 if err != nil {
-                    fmt.Printf("Error: %s\n", err)
+                    fmt.Printf("%s\n", err)
                 }
             }
         }
@@ -105,13 +105,40 @@ var rootCmd = &cobra.Command{
 
                 status, err := CompareFiles(syncFilePath, dotFilePath)
                 if err != nil {
-                    fmt.Printf("Error: %s\n", err)
+                    fmt.Printf("%s\n", err)
                 }
 
-                fmt.Println(status)
+                switch status {
+                case "synced":
+                    if verbose {
+                        fmt.Printf("File %s is synced. No action required\n", file)
+                    }
+                case "syncfile":
+                    if verbose {
+                        fmt.Printf("The following need to be synced\n")
+                        fmt.Printf("%s -> %s\n", dotFilePath, syncFilePath)
+                    }
 
+                    err := CopyFile(dotFilePath, syncFilePath)
+                    if err != nil {
+                        fmt.Printf("%v\n", err)
+                    }
+                case "dotfile":
+                    if verbose {
+                        fmt.Printf("The following need to be synced\n")
+                        fmt.Printf("%s -> %s\n", syncFilePath, dotFilePath)
+                    }
+
+                    err := CopyFile(syncFilePath, dotFilePath)
+                    if err != nil {
+                        fmt.Printf("%v\n", err)
+                    }
+                default:
+                    if verbose {
+                        fmt.Printf("Performed no action on file %s", file)
+                    }
+                }
             }
-
         }
 
         if push {
@@ -148,7 +175,7 @@ func initConfig() {
     } else {
         home, err := os.UserHomeDir()
         if err != nil {
-            fmt.Printf("Error: %s", err)
+            fmt.Printf("%s\n", err)
             os.Exit(1)
         }
 
@@ -176,7 +203,7 @@ sync path. But, this can also be used to copy regular text files pretty anywhere
 func CopyFile(srcPath, dstPath string) (e error) {
     srcFile, err := os.Stat(srcPath)
     if err != nil {
-        return fmt.Errorf("Error: %v\n", err)
+        return fmt.Errorf("%v\n", err)
     }
 
     if !srcFile.Mode().IsRegular() {
@@ -185,14 +212,14 @@ func CopyFile(srcPath, dstPath string) (e error) {
 
     src, err := os.Open(srcPath)
     if err != nil {
-        return fmt.Errorf("Error: %v\n", err)
+        return fmt.Errorf("%v\n", err)
     }
 
     defer src.Close()
 
     dst, err := os.Create(dstPath)
     if err != nil {
-        return fmt.Errorf("Error: %v\n", err)
+        return fmt.Errorf("%v\n", err)
     }
 
     defer dst.Close()
@@ -203,7 +230,7 @@ func CopyFile(srcPath, dstPath string) (e error) {
     
     _, err = io.Copy(dst, src)
     if err != nil {
-        return fmt.Errorf("Error: %s\n", err)
+        return fmt.Errorf("%s\n", err)
     }
 
     return nil
@@ -212,12 +239,12 @@ func CopyFile(srcPath, dstPath string) (e error) {
 func CopyDir(srcPath, dstPath string) (e error) {
     err := os.MkdirAll(dstPath, 0755)
     if err != nil {
-        return fmt.Errorf("Error: %s", err)
+        return fmt.Errorf("%s", err)
     }
 
     files, err := os.ReadDir(srcPath)
     if err != nil {
-        return fmt.Errorf("Error: %v", err)
+        return fmt.Errorf("%v", err)
     }
 
     for _, file := range files {
@@ -236,13 +263,13 @@ func CopyDir(srcPath, dstPath string) (e error) {
             } else {
                 err = CopyDir(src, dst)
                 if err != nil {
-                    return fmt.Errorf("Error: %s\n", err)
+                    return fmt.Errorf("%s\n", err)
                 }
             }
         } else {
             err = CopyFile(src, dst)
             if err != nil {
-                return fmt.Errorf("Error: %s\n", err)
+                return fmt.Errorf("%s\n", err)
             }
         }
     }
@@ -260,7 +287,7 @@ func CreateDirIfNotExist(path string) (e error) {
         fmt.Printf("Directory path %s does not exist. Creating it.\n", path)
         err := os.Mkdir(path, 0755)
         if err != nil {
-            return fmt.Errorf("Error: %v", err)
+            return fmt.Errorf("%v", err)
         }
     }
     return nil
@@ -284,13 +311,21 @@ func CompareFiles(syncFilePath, dotFilePath string) (sync string, e error) {
         synced string = "synced"
     )
 
+    syncfileInfo, syncErr := os.Stat(syncFilePath)
+    if syncErr != nil {
+        if verbose {
+            fmt.Printf("Path %s does not exist\n", syncFilePath)
+        }
+        return syncFile, nil
+    }
+
     if verbose {
         fmt.Printf("Reading syncfile: %s\n", syncFilePath)
     }
 
     syncfile, err := os.Open(syncFilePath)
     if err != nil {
-        return "", fmt.Errorf("%v\n", err)
+        return "", fmt.Errorf("%s\n", err)
     }
     
     defer syncfile.Close()
@@ -313,6 +348,18 @@ func CompareFiles(syncFilePath, dotFilePath string) (sync string, e error) {
     if verbose {
         fmt.Printf("Source file md5sum generated\n")
         fmt.Printf("Source Hash: %s\n", syncfileMd5Hash)
+    }
+
+    if verbose {
+        fmt.Printf("Getting dotfile attributes\n")
+    }
+    
+    dotfileInfo, dotErr := os.Stat(dotFilePath)
+    if dotErr != nil {
+        if verbose {
+            fmt.Printf("Path %s does not exist\n", dotFilePath)
+        }
+        return dotFile, nil
     }
 
     if verbose {
@@ -348,24 +395,23 @@ func CompareFiles(syncFilePath, dotFilePath string) (sync string, e error) {
 
     if syncfileMd5Hash == dotfileMd5Hash {
         fmt.Printf("Status: %s\n", synced)
-    } else {
-        fmt.Println("Not synced")
-    }
-
-
-    /*
-    if syncFileInfo.ModTime().Before(dotFileInfo.ModTime()) {
-        return syncFile, nil
-    } else if dotFileInfo.ModTime().Before(syncFileInfo.ModTime()) {
-        if os.IsNotExist(syncErr) {
-            return syncFile, nil
-        }
-        return dotFile, nil
-    } else {
         return synced, nil
+    } else {
+        if syncfileInfo.ModTime().After(dotfileInfo.ModTime()) {
+            fmt.Printf("Status: %s\n", syncFile)
+            return syncFile, nil
+        } else if dotfileInfo.ModTime().After(dotfileInfo.ModTime()) {
+            if os.IsNotExist(syncErr) {
+                fmt.Printf("Status: %s\n", syncFile)
+                return syncFile, nil
+            } else {
+                fmt.Printf("Status: %s\n", dotFile)
+                return dotFile, nil
+            }
+        }
     }
-    */
-    return "", nil
+    
+    return 
 }
 
 func GitClone(repoPath string) (e error) {
