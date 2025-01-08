@@ -4,6 +4,8 @@ import (
     "fmt"
     "os"
     "io"
+    "crypto/md5"
+    "encoding/hex"
 
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -94,7 +96,22 @@ var rootCmd = &cobra.Command{
         }
 
         if sync {
-            fmt.Println("I will eventually sync the files to the home directory")
+            fmt.Printf("Performing checks before sync\n")
+            fmt.Printf("Comparing files\n")
+
+            for _, file := range dotFilePaths {
+                syncFilePath := fmt.Sprintf("%s/%s", home, file)
+                dotFilePath := fmt.Sprintf("%s/%s", syncDir, file)
+
+                status, err := CompareFiles(syncFilePath, dotFilePath)
+                if err != nil {
+                    fmt.Printf("Error: %s\n", err)
+                }
+
+                fmt.Println(status)
+
+            }
+
         }
 
         if push {
@@ -147,7 +164,9 @@ func initConfig() {
         os.Exit(1)
     }
     
-    fmt.Printf("Config file loaded: %s\n", viper.ConfigFileUsed())
+    if verbose {
+        fmt.Printf("Config file loaded: %s\n", viper.ConfigFileUsed())
+    }
 }
 
 /*
@@ -258,23 +277,83 @@ This will either return errors or dotfiles / sync.
 For now for simplicity. I'll just compare the modified time and make a decision
 based on that.
 */
-func CompareFiles(syncPath, dotFilePath string) (sync string, e error) {
+func CompareFiles(syncFilePath, dotFilePath string) (sync string, e error) {
     const (
         dotFile string = "dotfile"
         syncFile string = "syncfile"
         synced string = "synced"
     )
 
-    syncFileInfo, syncErr := os.Stat(syncPath)
-    if syncErr != nil {
-        return "", fmt.Errorf("Error: %v", syncErr)
+    if verbose {
+        fmt.Printf("Reading syncfile: %s\n", syncFilePath)
     }
 
-    dotFileInfo, dotErr := os.Stat(dotFilePath)
-    if dotErr != nil {
-        return "", fmt.Errorf("Error: %v", dotErr)
+    syncfile, err := os.Open(syncFilePath)
+    if err != nil {
+        return "", fmt.Errorf("%v\n", err)
+    }
+    
+    defer syncfile.Close()
+
+    if verbose {
+        fmt.Printf("Generating MD5 hash\n")
+    }
+    
+    syncfileHash := md5.New()
+    
+    _, err = io.Copy(syncfileHash, syncfile)
+    if err != nil {
+        return "", fmt.Errorf("%v\n", err)
     }
 
+    syncfileBytesHash := syncfileHash.Sum(nil)[:16]
+    
+    syncfileMd5Hash := hex.EncodeToString(syncfileBytesHash)
+
+    if verbose {
+        fmt.Printf("Source file md5sum generated\n")
+        fmt.Printf("Source Hash: %s\n", syncfileMd5Hash)
+    }
+
+    if verbose {
+        fmt.Printf("Reading target file: %s\n", dotFilePath)
+    }
+    
+    dotfile, err := os.Open(dotFilePath)
+    if err != nil {
+        return "", fmt.Errorf("%v\n", err)
+    }
+
+    defer dotfile.Close()
+
+    if verbose {
+        fmt.Printf("Generating target file hash\n")
+    }
+    
+    dotfileHash := md5.New()
+    
+    _, err = io.Copy(dotfileHash, dotfile)
+    if err != nil {
+        return "", fmt.Errorf("%v\n", err)
+    }
+
+    dotfileBytesHash := dotfileHash.Sum(nil)[:16]
+    
+    dotfileMd5Hash := hex.EncodeToString(dotfileBytesHash)
+
+    if verbose {
+        fmt.Printf("Dotfile md5sum generated\n")
+        fmt.Printf("Dotfile Hash: %s\n", dotfileMd5Hash)
+    }
+
+    if syncfileMd5Hash == dotfileMd5Hash {
+        fmt.Printf("Status: %s\n", synced)
+    } else {
+        fmt.Println("Not synced")
+    }
+
+
+    /*
     if syncFileInfo.ModTime().Before(dotFileInfo.ModTime()) {
         return syncFile, nil
     } else if dotFileInfo.ModTime().Before(syncFileInfo.ModTime()) {
@@ -285,39 +364,15 @@ func CompareFiles(syncPath, dotFilePath string) (sync string, e error) {
     } else {
         return synced, nil
     }
+    */
+    return "", nil
 }
 
-func CompareDirs(syncPath, dotFilePath string) (sync string, e error) {
-    const (
-        dotFile string = "dotfile"
-        syncFile string = "syncfile"
-        synced string = "synced"
-    )
-
-    syncFileInfo, syncErr := os.Stat(syncPath)
-    if syncErr != nil {
-        return "", fmt.Errorf("Error: %v", syncErr)
-    }
-
-    dotFileInfo, dotErr := os.Stat(dotFilePath)
-    if dotErr != nil {
-        return "", fmt.Errorf("Error: %v", dotErr)
-    }
-
-    if syncFileInfo.ModTime().Before(dotFileInfo.ModTime()) {
-        return syncFile, nil
-    } else if dotFileInfo.ModTime().Before(syncFileInfo.ModTime()) {
-        if os.IsNotExist(syncErr) {
-            return syncFile, nil
-        }
-        return dotFile, nil
-    } else {
-        return synced, nil
-    }
+func GitClone(repoPath string) (e error) {
+    return nil
 }
 
 func GitAdd(repoPath string) (e error) {
-
     return nil
 }
 
