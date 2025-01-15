@@ -28,6 +28,7 @@ var verbose bool
 var sync bool
 var backup bool
 var push bool
+var get bool
 
 var versionCmd = &cobra.Command{
     Use:   "version",
@@ -142,7 +143,11 @@ var rootCmd = &cobra.Command{
         }
 
         if push {
-            fmt.Println("I will eventually commit and push the dotfiles git repo")
+            fmt.Println("This will commit and push the dotfiles git repo")
+        }
+
+        if get {
+            fmt.Println("This will get the remote repository if there is one.")
         }
     },
 }
@@ -157,12 +162,13 @@ func Execute() {
 func init() {
     cobra.OnInitialize(initConfig)
 
-    rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $HOME/.config/dotfilesync/config.yaml)")
-    rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "", false, "Show verbose output")
+    rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "c", "Config file (default is $HOME/.config/dotfilesync/config.yaml)")
+    rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output")
     rootCmd.PersistentFlags().BoolVarP(&backup, "backup", "b", false, "Backup dotfiles to sync directory")
     rootCmd.PersistentFlags().BoolVarP(&backup, "restore", "r", false, "Will restore backup files to their home directory locations.")
     rootCmd.PersistentFlags().BoolVarP(&sync, "sync", "s", false, "Sync dotfiles to the home directory. Will sync to dotfiles directory too.")
     rootCmd.PersistentFlags().BoolVarP(&push, "push", "p", false, "Adding, commit, and push files to git repo")
+    rootCmd.PersistentFlags().BoolVarP(&get, "get", "g", false, "Adding, commit, and push files to git repo")
 }
 
 func initConfig() {
@@ -230,7 +236,7 @@ func CopyFile(srcPath, dstPath string) (e error) {
     
     _, err = io.Copy(dst, src)
     if err != nil {
-        return fmt.Errorf("%s\n", err)
+        return fmt.Errorf("%v\n", err)
     }
 
     return nil
@@ -284,7 +290,9 @@ for copying files.
 */
 func CreateDirIfNotExist(path string) (e error) {
     if _, err := os.Stat(path); os.IsNotExist(err) {
-        fmt.Printf("Directory path %s does not exist. Creating it.\n", path)
+        if verbose {
+            fmt.Printf("Directory path %s does not exist. Creating it.\n", path)
+        }
         err := os.Mkdir(path, 0755)
         if err != nil {
             return fmt.Errorf("%v", err)
@@ -414,7 +422,7 @@ func CompareFiles(syncFilePath, dotFilePath string) (sync string, e error) {
     return 
 }
 
-func GitClone(repoPath string) (e error) {
+func GetDotfileRepo(repoPath string) (e error) {
     return nil
 }
 
@@ -427,6 +435,10 @@ func GitCommit(repoPath string) (e error) {
 }
 
 func GitPush(repoPath string) (e error) {
+    return nil
+}
+
+func GitFetch(repoPath string) (e error) {
     return nil
 }
 
